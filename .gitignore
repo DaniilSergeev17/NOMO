@@ -1,0 +1,30 @@
+# Python environments and caches
+.venv*/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Build and test artifacts
+build/
+dist/
+*.egg-info/
+.coverage
+htmlcov/
+
+# Local configuration and credentials
+.env
+.env.*
+*.env
+*.env.*
+.envrc
+secrets/
+*.pem
+*.key
+
+# Editor files
+.idea/
+.vscode/
