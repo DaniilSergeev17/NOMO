@@ -1,3 +1,5 @@
+"""Records shared by rollout, verification, and training."""
+
 from enum import StrEnum
 from typing import Annotated, Generic, Self, TypeVar
 
@@ -14,16 +16,29 @@ class _Record(BaseModel):
 
 
 class EpisodeEnd(StrEnum):
+    """Distinguish a terminal environment state from an external cutoff."""
+
     TERMINATED = 'terminated'
     TRUNCATED = 'truncated'
 
 
 class VerificationStatus(StrEnum):
+    """Indicate whether the verifier produced a usable reward."""
+
     SCORED = 'scored'
     ERROR = 'error'
 
 
 class Verification(_Record):
+    """Result of verifying one attempt.
+
+    Attributes:
+        verifier_revision: Version of the verifier that evaluated the attempt.
+        evidence_ref: Reference to the evidence for this result.
+        status: Whether the verifier scored the attempt or encountered an error.
+        reward: Finite score for a scored attempt, or None on verifier error.
+    """
+
     verifier_revision: Identifier
     evidence_ref: Identifier
     status: VerificationStatus
@@ -31,18 +46,23 @@ class Verification(_Record):
 
     @model_validator(mode='after')
     def check_reward(self) -> Self:
+        """Validate that scored attempts have a reward and verifier errors have none."""
         if (self.status == VerificationStatus.SCORED) != (self.reward is not None):
             raise ValueError('Scored attempts require a reward and verifier errors require null')
         return self
 
 
 class Decision(_Record, Generic[Observation, Action]):
-    '''One action and the exact input seen by the behavior policy.
+    """One action sampled during a rollout.
 
-    sampling_revision identifies the sampling rule and its parameters.
-    behavior_logprob, when present, is the joint log probability (or log
-    density) of the recorded action under that rule after sampling transforms.
-    '''
+    Attributes:
+        observation: Exact input the policy saw when choosing the action.
+        action: Action the policy took for that observation.
+        policy_version: Version of the weights used to sample the action.
+        sampling_revision: Identifier for the sampling rule and its parameters.
+        behavior_logprob: Joint log probability (or log density) of the action
+            after sampling transforms, or None if the sampler did not record it.
+    """
 
     observation: Observation
     action: Action
@@ -52,7 +72,22 @@ class Decision(_Record, Generic[Observation, Action]):
 
 
 class Episode(_Record, Generic[Observation, Action]):
-    '''A completed attempt. Use the adapter's observation and action types when loading JSON.'''
+    """A completed attempt and its verification result.
+
+    Use the adapter's observation and action types when loading an episode from JSON.
+
+    Attributes:
+        run_id: Training run that requested the episode.
+        task_id: Task assigned to the policy.
+        task_revision: Version of the task specification.
+        environment_revision: Version of the environment used for this attempt.
+        group_id: Group of rollouts sampled for the same task.
+        episode_id: Logical episode identifier shared across retries.
+        attempt_id: Identifier for this execution of the episode.
+        decisions: Policy decisions in the order they occurred.
+        end: Whether the episode terminated or was truncated.
+        verification: Verifier outcome and associated evidence.
+    """
 
     run_id: Identifier
     task_id: Identifier

@@ -1,4 +1,4 @@
-'''NOMO, a framework for reinforcement learning with verifiable rewards.'''
+"""NOMO, a framework for reinforcement learning with verifiable rewards."""
 
 from importlib.metadata import version as _version
 
