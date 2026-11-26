@@ -46,8 +46,8 @@ def test_cpu_update_matches_hand_calculation():
         # [num_observations, num_action_choices] -> [action_count]:
         return logits.log_softmax(dim=-1)[observations, actions]
 
-    loss = loss_for_pair(group, compute_current_logprobs)  # scalar
-    # Sequence probabilities are 3/4 * 1/2 and 1/4. Advantages are +1 and -1.
+    loss = loss_for_pair(group, compute_current_logprobs) # scalar
+    # sequence probabilities are 3/4 * 1/2 and 1/4, with advantages +1 and -1
     assert loss.item() == pytest.approx(-log(1.5) / 2)
     loss.backward()
     torch.testing.assert_close(logits.grad, logits.new_tensor([[-0.5, 0.5], [-0.25, 0.25]]))
@@ -61,7 +61,7 @@ def test_cpu_update_matches_hand_calculation():
 )
 def test_leave_one_out_gradient(rewards, grad):
     group = [episode(str(i), [0], reward) for i, reward in enumerate(rewards)]
-    current_logprobs = torch.tensor([-0.4, -0.8, -1.2], requires_grad=True)  # [action_count]
+    current_logprobs = torch.tensor([-0.4, -0.8, -1.2], requires_grad=True) # [action_count]
     loss = rloo_loss(
         group, lambda _: current_logprobs, expected_episode_ids={'0', '1', '2'},
         current_policy_version='p1', sampling_revision='categorical',
@@ -72,7 +72,7 @@ def test_leave_one_out_gradient(rewards, grad):
 
 def test_large_shared_reward_preserves_unit_difference():
     group = [episode('a', [0], 2**52), episode('b', [1], 2**52 + 1)]
-    current_logprobs = torch.tensor([-0.3, -1.3], dtype=torch.float32, requires_grad=True)  # [action_count]
+    current_logprobs = torch.tensor([-0.3, -1.3], dtype=torch.float32, requires_grad=True) # [action_count]
     loss_for_pair(group, lambda _: current_logprobs).backward()
     torch.testing.assert_close(current_logprobs.grad, torch.tensor([0.5, -0.5]))
 

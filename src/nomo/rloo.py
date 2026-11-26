@@ -1,4 +1,4 @@
-"""On-policy REINFORCE leave-one-out (RLOO) loss for verified rollouts."""
+"""On-policy REINFORCE Leave-One-Out (RLOO) loss for verified rollouts."""
 
 from collections.abc import Callable, Sequence, Set
 from statistics import fmean
@@ -80,22 +80,22 @@ def rloo_loss(
     action_count = sum(episode_lengths)
     if action_count == 0:
         return None
-    current_logprobs = compute_current_logprobs(episodes)  # [action_count]
+    current_logprobs = compute_current_logprobs(episodes) # [action_count]
     if current_logprobs.shape != (action_count,) or not current_logprobs.is_floating_point():
         raise ValueError('compute_current_logprobs must return one floating-point logprob per decision')
     current_logprobs = current_logprobs.to(torch.promote_types(current_logprobs.dtype, torch.float32))
-    if not torch.isfinite(current_logprobs).all():  # [action_count] -> scalar
+    if not torch.isfinite(current_logprobs).all(): # [action_count] -> scalar
         raise ValueError('An observed action has a non-finite logprob under the current policy')
 
-    # R_i - mean(R_others) = (R_i - mean(R)) * G / (G - 1).
-    # Subtracting the first reward keeps a large shared value out of the mean.
+    # RLOO advantage: R_i - mean(R_others) = (R_i - mean(R)) * G / (G - 1)
+    # subtracting the first reward keeps a large shared value out of the mean
     shifted_rewards = [reward - rewards[0] for reward in rewards]
     mean_shifted_reward = fmean(shifted_rewards)
     episode_advantages = current_logprobs.new_tensor([
         (reward - mean_shifted_reward) * (group_size / (group_size - 1)) for reward in shifted_rewards
-    ])  # [group_size]
+    ]) # [group_size]
     action_advantages = episode_advantages.repeat_interleave(
         torch.tensor(episode_lengths, device=current_logprobs.device), output_size=action_count,
-    )  # [group_size] -> [action_count]
+    ) # [group_size] -> [action_count]
     # [action_count] @ [action_count] -> scalar:
     return -torch.dot(current_logprobs, action_advantages) / group_size
