@@ -23,7 +23,9 @@ def rloo_loss(
     Use the group for one update with the policy that generated it.
 
     Args:
-        episodes: Available attempts for the same run, task, and rollout group.
+        episodes: Episodes collected so far for one group in the same run and
+            task. For single-turn text generation, pass one episode per
+            independently sampled response to the same prompt.
         compute_current_logprobs: Function that evaluates the recorded actions
             on their original observations using the specified weights and
             sampling rule. It returns a differentiable tensor of shape

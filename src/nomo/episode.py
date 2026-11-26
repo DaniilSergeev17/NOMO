@@ -30,13 +30,13 @@ class VerificationStatus(StrEnum):
 
 
 class Verification(_Record):
-    """Result of verifying one attempt.
+    """Verifier outcome for a whole episode.
 
     Attributes:
-        verifier_revision: Version of the verifier that evaluated the attempt.
+        verifier_revision: Version of the verifier used for this episode.
         evidence_ref: Reference to the evidence for this result.
-        status: Whether the verifier scored the attempt or encountered an error.
-        reward: Finite score for a scored attempt, or None on verifier error.
+        status: Whether the verifier scored the episode or encountered an error.
+        reward: Finite score for the episode, or None on verifier error.
     """
 
     verifier_revision: Identifier
@@ -46,14 +46,17 @@ class Verification(_Record):
 
     @model_validator(mode='after')
     def check_reward(self) -> Self:
-        """Validate that scored attempts have a reward and verifier errors have none."""
+        """Require a reward for a scored episode and None for a verifier error."""
         if (self.status == VerificationStatus.SCORED) != (self.reward is not None):
             raise ValueError('Scored attempts require a reward and verifier errors require null')
         return self
 
 
 class Decision(_Record, Generic[Observation, Action]):
-    """One action sampled during a rollout.
+    """One policy step: an observation and the action sampled from it.
+
+    In autoregressive text generation, the observation is the context seen
+    so far and the action is the next generated token.
 
     Attributes:
         observation: Exact input the policy saw when choosing the action.
@@ -72,7 +75,10 @@ class Decision(_Record, Generic[Observation, Action]):
 
 
 class Episode(_Record, Generic[Observation, Action]):
-    """A completed attempt and its verification result.
+    """One rollout from the first observation to termination or truncation.
+
+    In single-turn text generation, one episode records one response to a
+    prompt, up to the stop condition or token limit.
 
     Use the adapter's observation and action types when loading an episode from JSON.
 
@@ -80,10 +86,11 @@ class Episode(_Record, Generic[Observation, Action]):
         run_id: Training run that requested the episode.
         task_id: Task assigned to the policy.
         task_revision: Version of the task specification.
-        environment_revision: Version of the environment used for this attempt.
+        environment_revision: Version of the environment used for this rollout.
         group_id: Group of rollouts sampled for the same task.
-        episode_id: Logical episode identifier shared across retries.
-        attempt_id: Identifier for this execution of the episode.
+        episode_id: Identifier of this episode within the group, retained on retry.
+        attempt_id: Identifier for one execution of this episode. A retry gets
+            a new attempt_id and keeps the same episode_id.
         decisions: Policy decisions in the order they occurred.
         end: Whether the episode terminated or was truncated.
         verification: Verifier outcome and associated evidence.
